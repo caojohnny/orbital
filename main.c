@@ -30,6 +30,8 @@ static void handle_key_press(SDL_Event *ev) {
         case SDL_SCANCODE_R:
             printf("Pressed 'r'\n");
             break;
+        default:
+            break;
     }
 }
 
@@ -38,7 +40,10 @@ static void resized(int w, int h) {
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
-    glOrtho(-w, w, -h, h, 0.0, 1.0);
+
+    double half_w = w / 2.0;
+    double half_h = h / 2.0;
+    glOrtho(-half_w, half_w, -half_h, half_h, 0.0, 1.0);
 }
 
 static void handle_window_event(SDL_Event *ev) {
@@ -52,6 +57,8 @@ static void handle_window_event(SDL_Event *ev) {
             resized(w, h);
             break;
         }
+        default:
+            break;
     }
 }
 
@@ -69,6 +76,8 @@ static void handle_events(int *close) {
             case SDL_WINDOWEVENT:
                 handle_window_event(&ev);
                 break;
+            default:
+                break;
         }
     }
 }
@@ -84,11 +93,53 @@ static void draw_circle(int r, int x, int y) {
     glEnd();
 }
 
+static void draw_rocket(int x, int y) {
+    int radius = 10;
+    int body_len = 20;
+    int nose_len = 10;
+
+    /*
+     *    5     -
+     *  /   \   |  nose_len
+     * 4  0  1  -
+     * |     |  |  body_len
+     * |     |  |
+     * 3_____2  -
+     */
+    glBegin(GL_POLYGON);
+    glVertex2f(x + radius, y);
+    glVertex2f(x + radius, y - body_len);
+    glVertex2f(x - radius, y - body_len);
+    glVertex2f(x - radius, y);
+    glVertex2f(x, y + nose_len);
+    glEnd();
+}
+
+static void draw_flame(int x, int y) {
+    int half_w = 4;
+    int h = 10;
+
+    glBegin(GL_TRIANGLES);
+    glVertex2f(x - half_w, y);
+    glVertex2f(x + half_w, y);
+    glVertex2f(x, y - h);
+    glEnd();
+}
+
+static void update() {
+}
+
 static void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    glColor3f(1.0, 1.0, 1.0);
+    glColor3f(0.0, 0.4, 1.0);
     draw_circle(100, 0, 0);
+
+    glColor3f(1.0, 1.0, 1.0);
+    draw_rocket(150, 0);
+
+    glColor3f(1.0, 0.0, 0.0);
+    draw_flame(150, 0 - 20);
 }
 
 static void run_process_loop(SDL_Window *win) {
@@ -103,6 +154,7 @@ static void run_process_loop(SDL_Window *win) {
             break;
         }
 
+        update();
         render();
         SDL_GL_SwapWindow(win);
 
