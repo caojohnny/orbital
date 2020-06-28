@@ -10,59 +10,99 @@ static const long MS_PER_SEC = 1000;
 static const long NS_PER_MS = 1000000;
 static const long LOOP_DELAY_MS = 50;
 
-struct gl_shader_wrapper {
-    GLuint prog;
-    GLuint vbo;
-    GLuint vao;
-
-    int n_points;
-};
-
 static struct gl_shader_wrapper circle;
+static struct gl_shader_wrapper rocket;
+static struct gl_shader_wrapper flame;
 
-static int create_circle(struct gl_shader_wrapper *out) {
-    GLuint prog;
-    if (!create_prog("./shaders/vs-fixed.glsl", "./shaders/fs-fixed.glsl", &prog)) {
+static int init_circle(struct gl_shader_wrapper *wrapper) {
+    if (!bind_shader("./shaders/vs-fixed.glsl", "./shaders/fs-fixed.glsl", wrapper)) {
         return 0;
     }
 
-    glUseProgram(prog);
-
-    GLuint vbo;
-    GLuint vao;
-    glGenBuffers(1, &vbo);
-    glGenVertexArrays(1, &vao);
-
     // Stole this code from: https://stackoverflow.com/questions/22444450/drawing-circle-with-opengl/24843626#24843626
-    float circle_x = 0;
-    float circle_y = 0;
-    float circle_r = 0.2F;
-    int n_points = CIRCLE_DIVISIONS + 1;
-    size_t circle_array_size = 2 * n_points * sizeof(float);
-    float *circle_arr = malloc(circle_array_size);
-    for (int i = 0, arr_idx = 0; i <= CIRCLE_DIVISIONS; i++, arr_idx += 2) {
-        float vx = circle_x + circle_r * (float) cos(i * TWO_PI / CIRCLE_DIVISIONS);
-        float vy = circle_y + circle_r * (float) sin(i * TWO_PI / CIRCLE_DIVISIONS);
+    float x = 0.0F;
+    float y = 0.0F;
+    float r = 0.2F;
 
-        circle_arr[arr_idx] = vx;
-        circle_arr[arr_idx + 1] = vy;
+    int n_points = CIRCLE_DIVISIONS + 1;
+    size_t len = 2 * n_points * sizeof(float);
+    float *arr = malloc(len);
+    for (int i = 0, arr_idx = 0; i <= CIRCLE_DIVISIONS; i++, arr_idx += 2) {
+        float vx = x + r * (float) cos(i * TWO_PI / CIRCLE_DIVISIONS);
+        float vy = y + r * (float) sin(i * TWO_PI / CIRCLE_DIVISIONS);
+
+        arr[arr_idx] = vx;
+        arr[arr_idx + 1] = vy;
     }
 
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, circle_array_size, circle_arr, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
-    glEnableVertexAttribArray(0);
-    free(circle_arr);
+    buffer_data_2f(wrapper, n_points, len, arr);
+    free(arr);
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    GLint in_color = glGetUniformLocation(wrapper->prog, "in_color");
+    glUniform4f(in_color, 0.0F, 0.4F, 1.0F, 1.0F);
 
-    GLint in_color = glGetUniformLocation(prog, "in_color");
+    return 1;
+}
+
+static int init_rocket(struct gl_shader_wrapper *wrapper) {
+    if (!bind_shader("./shaders/vs-fixed.glsl", "./shaders/fs-fixed.glsl", wrapper)) {
+        return 0;
+    }
+
+    float x = 0.3F;
+    float y = 0.0F;
+    float radius = 0.01F;
+    float body_len = 0.02F;
+    float nose_len = 0.01F;
+
+    int n_points = 5;
+    size_t len = 2 * n_points * sizeof(float);
+    /*
+     *    5     -
+     *  /   \   |  nose_len
+     * 4  0  1  -
+     * |     |  |  body_len
+     * |     |  |
+     * 3_____2  -
+     */
+    float arr[] = {
+            x + radius, y,
+            x + radius, y - body_len,
+            x - radius, y - body_len,
+            x - radius, y,
+            x, y + nose_len
+    };
+
+    buffer_data_2f(wrapper, n_points, len, arr);
+
+    GLint in_color = glGetUniformLocation(wrapper->prog, "in_color");
     glUniform4f(in_color, 1.0, 1.0, 1.0, 1.0);
 
-    struct gl_shader_wrapper wrapper = {prog, vbo, vao, n_points};
-    *out = wrapper;
+    return 1;
+}
+
+static int init_flame(struct gl_shader_wrapper *wrapper) {
+    if (!bind_shader("./shaders/vs-fixed.glsl", "./shaders/fs-fixed.glsl", wrapper)) {
+        return 0;
+    }
+
+    float x = 0.3F;
+    float y = -0.02F;
+    float half_w = 0.01F;
+    float h = 0.02F;
+
+    int n_points = 3;
+    size_t len = 2 * n_points * sizeof(float);
+    float arr[] = {
+            x - half_w, y,
+            x + half_w, y,
+            x, y - h
+    };
+
+    buffer_data_2f(wrapper, n_points, len, arr);
+
+    GLint in_color = glGetUniformLocation(wrapper->prog, "in_color");
+    glUniform4f(in_color, 1.0, 0.0, 0.0, 1.0);
 
     return 1;
 }
@@ -88,11 +128,29 @@ static int init_opengl(SDL_Window *win) {
         return 0;
     }
 
-    if (!create_circle(&circle)) {
+    return 1;
+}
+
+static int init_graphics() {
+    if (!init_circle(&circle)) {
+        return 0;
+    }
+
+    if (!init_rocket(&rocket)) {
+        return 0;
+    }
+
+    if (!init_flame(&flame)) {
         return 0;
     }
 
     return 1;
+}
+
+static void destroy_graphics() {
+    destroy_shader(&circle);
+    destroy_shader(&rocket);
+    destroy_shader(&flame);
 }
 
 static void handle_key_press(SDL_Event *ev) {
@@ -128,16 +186,11 @@ static void resized(int w, int h) {
 static void handle_window_event(SDL_Event *ev) {
     SDL_WindowEvent window_ev = ev->window;
     Uint8 type = window_ev.event;
-    switch (type) {
-        case SDL_WINDOWEVENT_SIZE_CHANGED: {
-            Sint32 w = window_ev.data1;
-            Sint32 h = window_ev.data2;
-            printf("New window size: %dx%d\n", w, h);
-            resized(w, h);
-            break;
-        }
-        default:
-            break;
+    if (type == SDL_WINDOWEVENT_SIZE_CHANGED) {
+        Sint32 w = window_ev.data1;
+        Sint32 h = window_ev.data2;
+        printf("New window size: %dx%d\n", w, h);
+        resized(w, h);
     }
 }
 
@@ -161,57 +214,15 @@ static void handle_events(int *close) {
     }
 }
 
-static void draw_rocket(int x, int y) {
-    int radius = 10;
-    int body_len = 20;
-    int nose_len = 10;
-
-    /*
-     *    5     -
-     *  /   \   |  nose_len
-     * 4  0  1  -
-     * |     |  |  body_len
-     * |     |  |
-     * 3_____2  -
-     */
-    glBegin(GL_POLYGON);
-    glVertex2f(x + radius, y);
-    glVertex2f(x + radius, y - body_len);
-    glVertex2f(x - radius, y - body_len);
-    glVertex2f(x - radius, y);
-    glVertex2f(x, y + nose_len);
-    glEnd();
-}
-
-static void draw_flame(int x, int y) {
-    int half_w = 4;
-    int h = 10;
-
-    glBegin(GL_TRIANGLES);
-    glVertex2f(x - half_w, y);
-    glVertex2f(x + half_w, y);
-    glVertex2f(x, y - h);
-    glEnd();
-}
-
 static void update() {
 }
 
 static void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    /* glColor3f(0.0, 0.4, 1.0);
-    draw_circle(100, 0, 0);
-
-    glColor3f(1.0, 1.0, 1.0);
-    draw_rocket(150, 0);
-
-    glColor3f(1.0, 0.0, 0.0);
-    draw_flame(150, 0 - 20); */
-
-    glUseProgram(circle.prog);
-    glBindVertexArray(circle.vao);
-    glDrawArrays(GL_TRIANGLE_FAN, 0, circle.n_points);
+    draw_shader_arrays(&circle, GL_TRIANGLE_FAN);
+    draw_shader_arrays(&rocket, GL_POLYGON);
+    draw_shader_arrays(&flame, GL_TRIANGLES);
 }
 
 static void run_process_loop(SDL_Window *win) {
@@ -268,12 +279,16 @@ int main() {
 
     printf("Initialized OpenGL\n");
 
+    if (!init_graphics()) {
+        return EXIT_FAILURE;
+    }
+
+    printf("Initialized graphics\n");
+
     resized(initial_w, initial_h);
     run_process_loop(win);
 
-    glDeleteVertexArrays(1, &circle.vao);
-    glDeleteBuffers(1, &circle.vbo);
-    glDeleteProgram(circle.prog);
+    destroy_graphics();
 
     SDL_DestroyWindow(win);
     SDL_Quit();

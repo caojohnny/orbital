@@ -103,3 +103,48 @@ int create_prog(const char *vs_path, const char *fs_path, GLuint *prog_id) {
     return 1;
 }
 
+int bind_shader(const char *vs_src, const char *fs_src, struct gl_shader_wrapper *out) {
+    GLuint prog;
+    if (!create_prog(vs_src, fs_src, &prog)) {
+        return 0;
+    }
+
+    glUseProgram(prog);
+
+    GLuint vbo;
+    GLuint vao;
+    glGenBuffers(1, &vbo);
+    glGenVertexArrays(1, &vao);
+
+    struct gl_shader_wrapper wrapper = {prog, vbo, vao, 0};
+    *out = wrapper;
+
+    return 1;
+}
+
+void buffer_data_2f(struct gl_shader_wrapper *wrapper, int n_points, size_t arr_len, const float *arr) {
+    glUseProgram(wrapper->prog);
+
+    glBindVertexArray(wrapper->vao);
+    glBindBuffer(GL_ARRAY_BUFFER, wrapper->vbo);
+    glBufferData(GL_ARRAY_BUFFER, arr_len, arr, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    wrapper->n_points = n_points;
+}
+
+void draw_shader_arrays(struct gl_shader_wrapper *wrapper, GLenum mode) {
+    glUseProgram(wrapper->prog);
+    glBindVertexArray(wrapper->vao);
+    glDrawArrays(mode, 0, wrapper->n_points);
+}
+
+void destroy_shader(struct gl_shader_wrapper *wrapper) {
+    glDeleteVertexArrays(1, &wrapper->vao);
+    glDeleteBuffers(1, &wrapper->vbo);
+    glDeleteProgram(wrapper->prog);
+}
