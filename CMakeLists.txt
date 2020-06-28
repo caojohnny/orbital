@@ -5,13 +5,18 @@ set(CMAKE_C_STANDARD 99)
 
 find_package(SDL2 REQUIRED)
 find_package(OpenGL REQUIRED)
+find_package(GLEW REQUIRED)
+include("cmake/DownloadCglm.cmake")
 
-add_executable(orbital main.c)
+add_executable(orbital main.c shader_util.c shader_util.h)
 target_include_directories(orbital
         PRIVATE ${SDL2_INCLUDE_DIRS}
-        PRIVATE ${OPENGL_INCLUDE_DIRS})
+        PRIVATE ${OPENGL_INCLUDE_DIRS}
+        PRIVATE ${GLEW_INCLUDE_DIRS})
 target_link_libraries(orbital
         PRIVATE ${SDL2_LIBRARIES}
         PRIVATE ${OPENGL_LIBRARIES}
+        PRIVATE ${GLEW_LIBRARIES}
+        PRIVATE cglm
         PRIVATE m)
 
