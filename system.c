@@ -50,9 +50,7 @@ void recompute_system(double dt, int n_bodies, struct body *bodies) {
         }
 
         struct vector acl = { F_net.x / body->mass, F_net.y / body->mass, F_net.z / body->mass };
-        body->acl.x += acl.x;
-        body->acl.y += acl.y;
-        body->acl.z += acl.z;
+        body->acl = acl;
     }
 
     free(temp);
