@@ -3,16 +3,53 @@
 #include <time.h>
 #include <cglm/cglm.h>
 #include "shader_util.h"
+#include "system.h"
 
 static const double TWO_PI = 2.0 * M_PI;
 static const int CIRCLE_DIVISIONS = 100;
 static const long MS_PER_SEC = 1000;
 static const long NS_PER_MS = 1000000;
-static const long LOOP_DELAY_MS = 50;
+static const long LOOP_DELAY_MS = 20;
 
-static struct gl_shader_wrapper circle;
-static struct gl_shader_wrapper rocket;
-static struct gl_shader_wrapper flame;
+enum direction {
+    IDLE,
+    LEFT,
+    RIGHT,
+    UP,
+    DOWN
+};
+
+static struct body *bodies;
+
+static struct gl_shader_wrapper circle_shader;
+static struct gl_shader_wrapper rocket_shader;
+static struct gl_shader_wrapper flame_shader;
+
+enum direction cur_dir;
+
+static void init_system() {
+    bodies = malloc(2 * sizeof(struct body));
+
+    // IAU 1976 value for Earth mass
+    add_body(5972200000000000000000000.0, bodies);
+
+    // https://www.spaceflightinsider.com/hangar/falcon-9/
+    // F9 2nd stage mass
+    add_body(96570.0, bodies + 1);
+
+    struct body *rocket = bodies + 1;
+
+    // IAU 2015 Earth radius
+    struct vector initial_pos = { 6378100 + 120000, 0, 0 };
+    rocket->pos = initial_pos;
+
+    struct vector initial_v = {0, 2200, 0};
+    rocket->vel = initial_v;
+}
+
+static void destroy_system() {
+    free(bodies);
+}
 
 static int init_circle(struct gl_shader_wrapper *wrapper) {
     if (!bind_shader("./shaders/vs-fixed.glsl", "./shaders/fs-fixed.glsl", wrapper)) {
@@ -132,15 +169,15 @@ static int init_opengl(SDL_Window *win) {
 }
 
 static int init_graphics() {
-    if (!init_circle(&circle)) {
+    if (!init_circle(&circle_shader)) {
         return 0;
     }
 
-    if (!init_rocket(&rocket)) {
+    if (!init_rocket(&rocket_shader)) {
         return 0;
     }
 
-    if (!init_flame(&flame)) {
+    if (!init_flame(&flame_shader)) {
         return 0;
     }
 
@@ -148,28 +185,44 @@ static int init_graphics() {
 }
 
 static void destroy_graphics() {
-    destroy_shader(&circle);
-    destroy_shader(&rocket);
-    destroy_shader(&flame);
+    destroy_shader(&circle_shader);
+    destroy_shader(&rocket_shader);
+    destroy_shader(&flame_shader);
 }
 
-static void handle_key_press(SDL_Event *ev) {
+static void handle_key_event(SDL_Event *ev, int press_down) {
     SDL_KeyboardEvent key_ev = ev->key;
     SDL_Keysym key_info = key_ev.keysym;
     SDL_Scancode sc = key_info.scancode;
 
     switch (sc) {
         case SDL_SCANCODE_LEFT:
-            printf("Pressed 'left'\n");
+            if (press_down) {
+                cur_dir = LEFT;
+            } else {
+                cur_dir = IDLE;
+            }
             break;
         case SDL_SCANCODE_UP:
-            printf("Pressed 'up'\n");
+            if (press_down) {
+                cur_dir = UP;
+            } else {
+                cur_dir = IDLE;
+            }
             break;
         case SDL_SCANCODE_RIGHT:
-            printf("Pressed 'right'\n");
+            if (press_down) {
+                cur_dir = RIGHT;
+            } else {
+                cur_dir = IDLE;
+            }
             break;
         case SDL_SCANCODE_DOWN:
-            printf("Pressed 'down'\n");
+            if (press_down) {
+                cur_dir = DOWN;
+            } else {
+                cur_dir = IDLE;
+            }
             break;
         case SDL_SCANCODE_R:
             printf("Pressed 'r'\n");
@@ -203,7 +256,10 @@ static void handle_events(int *close) {
                 *close = 1;
                 return;
             case SDL_KEYDOWN:
-                handle_key_press(&ev);
+                handle_key_event(&ev, 1);
+                break;
+            case SDL_KEYUP:
+                handle_key_event(&ev, 0);
                 break;
             case SDL_WINDOWEVENT:
                 handle_window_event(&ev);
@@ -215,14 +271,23 @@ static void handle_events(int *close) {
 }
 
 static void update() {
+    struct body *rocket = bodies + 1;
+    struct vector pos = rocket->pos;
+    printf("Rocket position: (%f, %f, %f)\n",
+           pos.x, pos.y, pos.z);
+
+    recompute_system(1, 2, bodies);
 }
 
 static void render() {
     glClear(GL_COLOR_BUFFER_BIT);
 
-    draw_shader_arrays(&circle, GL_TRIANGLE_FAN);
-    draw_shader_arrays(&rocket, GL_POLYGON);
-    draw_shader_arrays(&flame, GL_TRIANGLES);
+    draw_shader_arrays(&circle_shader, GL_TRIANGLE_FAN);
+    draw_shader_arrays(&rocket_shader, GL_POLYGON);
+
+    if (cur_dir == UP) {
+        draw_shader_arrays(&flame_shader, GL_TRIANGLES);
+    }
 }
 
 static void run_process_loop(SDL_Window *win) {
@@ -285,9 +350,13 @@ int main() {
 
     printf("Initialized graphics\n");
 
+    init_system();
+    printf("Initialized system\n");
+
     resized(initial_w, initial_h);
     run_process_loop(win);
 
+    destroy_system();
     destroy_graphics();
 
     SDL_DestroyWindow(win);

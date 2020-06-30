@@ -19,4 +19,7 @@ cmake .. && make
 
 Built with [CLion](https://www.jetbrains.com/clion/)
 
-Utilizes [LibSDL2](https://www.libsdl.org/)
+Utilizes:
+
+  * [LibSDL2](https://www.libsdl.org/)
+  * [cglm](https://github.com/recp/cglm)
