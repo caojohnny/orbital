@@ -40,7 +40,8 @@ git clone https://github.com/AgentTroll/orbital.git
 cd orbital
 mkdir build && cd build
 cmake .. && make
-./orbital
+cd ..
+./build/orbital
 ```
 
 # Credits
