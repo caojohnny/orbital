@@ -9,6 +9,7 @@ struct vector {
 
 struct body {
     double mass;
+    struct vector F_net_ext;
     struct vector pos;
     struct vector vel;
     struct vector acl;

@@ -9,7 +9,7 @@ static const double G = 0.000000000066743;
 
 void add_body(double mass, struct body *out) {
     struct body body = {
-            mass, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}
+            mass, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}
     };
     *out = body;
 }
@@ -33,7 +33,7 @@ void recompute_system(double dt, int n_bodies, struct body *bodies) {
     for (int i = 0; i < n_bodies; ++i) {
         struct body *body = bodies + i;
 
-        struct vector F_net = {0, 0, 0};
+        struct vector F_net = body->F_net_ext;
         for (int j = 0; j < n_bodies; ++j) {
             if (j == i) {
                 continue;

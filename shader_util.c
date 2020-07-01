@@ -127,6 +127,7 @@ void buffer_data_2f(struct gl_shader_wrapper *wrapper, int n_points, size_t arr_
 
     glBindVertexArray(wrapper->vao);
     glBindBuffer(GL_ARRAY_BUFFER, wrapper->vbo);
+
     glBufferData(GL_ARRAY_BUFFER, arr_len, arr, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), 0);
     glEnableVertexAttribArray(0);
