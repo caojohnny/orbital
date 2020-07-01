@@ -7,7 +7,10 @@ maneuvers work in a realistic setting, using Earth
 and a satellite in LEO. This is a simplified model
 considering only Newtonian gravity between two bodies (so
 it is not a comprehensive simulation of what actually
-happens).
+happens). The program loop runs in intervals of 20 ms
+(50 updates per second) and 5 seconds elapses each update,
+meaning that each second, 250 seconds passes for a 250x
+simulated time.
 
 # Controls
 
