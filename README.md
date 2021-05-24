@@ -36,7 +36,7 @@ on Debian) and OpenGL (`sudo apt-get install libgl1-mesa-dev`
 or native GPU driver) to run.
 
 ``` shell
-git clone https://github.com/AgentTroll/orbital.git
+git clone https://github.com/caojohnny/orbital.git
 cd orbital
 mkdir build && cd build
 cmake .. && make
